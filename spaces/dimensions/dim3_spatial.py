@@ -21,7 +21,7 @@ def render(df_view, total_records, unique_users):
     # ==========================================
     df_space = df_view.copy()
     
-    # 1. 强制类型转换，确保排序引擎不崩溃
+    # 1. 强制类型转换，确保坐标纯净
     for col in ['PCA_X', 'PCA_Y']:
         if col in df_space.columns:
             df_space[col] = pd.to_numeric(df_space[col], errors='coerce')
@@ -37,15 +37,12 @@ def render(df_view, total_records, unique_users):
     try:
         centroids = df_space.groupby('阵营标签')[['PCA_X', 'PCA_Y']].transform('mean')
         
-        # 使用 numpy 数组运算避开索引对齐开销
         dx = (df_space['PCA_X'].values - centroids['PCA_X'].values)
         dy = (df_space['PCA_Y'].values - centroids['PCA_Y'].values)
         
-        # 强制转换为 float64
-        df_space['偏离度'] = np.sqrt(dx**2 + dy**2).astype(np.float64)
-        
-        # 4. 极端值防护 (将无穷大或NaN替换为0)
-        df_space['偏离度'] = df_space['偏离度'].replace([np.inf, -np.inf], np.nan).fillna(0)
+        # 💥 战术清理：计算并把可能导致排序崩溃的所有特殊值全部抹平
+        df_space['偏离度'] = np.sqrt(dx**2 + dy**2)
+        df_space['偏离度'] = pd.to_numeric(df_space['偏离度'], errors='coerce').fillna(0)
     except Exception as e:
         st.error(f"💥 空间算法引擎故障: {e}")
         df_space['偏离度'] = 0
@@ -81,24 +78,27 @@ def render(df_view, total_records, unique_users):
     st.markdown("---")
     
     # ==========================================
-    # 🔭 下半场：探测 (加装异常保护)
+    # 🔭 下半场：探测 (终极防线)
     # ==========================================
     st.markdown("### 🔭 空间引力场：边缘刺头与阵营标兵提取")
+    
+    # 💥 排序前强行剔除所有可能作妖的 NaN，构建绝对安全的子集
+    df_safe = df_space.dropna(subset=['用户编号', '偏离度', '阵营标签']).copy()
     
     rc1, rc2 = st.columns(2)
     with rc1:
         st.markdown("#### 🚨 边缘游离态预警 (Top 5)")
-        # 💥 终极防护：使用 try-except 包裹排序过程
         try:
-            outliers = df_space.sort_values(by='偏离度', ascending=False).drop_duplicates(subset=['用户编号']).head(5)
+            # 在绝对安全的子集上进行排序
+            outliers = df_safe.sort_values(by='偏离度', ascending=False).drop_duplicates(subset=['用户编号']).head(5)
             st.dataframe(outliers[['用户编号', '阵营标签', '偏离度']], hide_index=True, use_container_width=True)
-        except:
-            st.error("数据排序异常，暂无法提取刺头名单。")
+        except Exception as e:
+            st.error(f"排序受阻: {e}")
 
     with rc2:
         st.markdown("#### 🏆 阵营纯血标兵 (Top 5)")
         try:
-            standards = df_space.sort_values(by='偏离度', ascending=True).drop_duplicates(subset=['用户编号']).head(5)
+            standards = df_safe.sort_values(by='偏离度', ascending=True).drop_duplicates(subset=['用户编号']).head(5)
             st.dataframe(standards[['用户编号', '阵营标签', '偏离度']], hide_index=True, use_container_width=True)
-        except:
-            st.error("数据排序异常，暂无法提取标兵名单。")
+        except Exception as e:
+            st.error(f"排序受阻: {e}")
