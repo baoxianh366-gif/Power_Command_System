@@ -35,7 +35,7 @@ def render(df_view, time_cols):
                 fig_time.add_vrect(x0=i-0.5, x1=i+0.5, fillcolor=color_map.get(tou_vector[i], "rgba(0,0,0,0)"), layer="below", line_width=0)
         
         fig_time.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=30, b=0), height=350, xaxis_title="时间轴 (48个交易时段)", yaxis_title="聚合平均功率")
-        st.plotly_chart(fig_time, width='stretch')
+        st.plotly_chart(fig_time, use_container_width=True)
 
     with c2:
         st.subheader("八维战力雷达：资产全息属性")
@@ -48,10 +48,10 @@ def render(df_view, time_cols):
         
         fig_radar = go.Figure(data=go.Scatterpolar(r=radar_values + [radar_values[0]], theta=radar_categories + [radar_categories[0]], fill='toself', line_color='#FF0055'))
         fig_radar.update_layout(polar=dict(radialaxis=dict(visible=False)), template='plotly_dark', margin=dict(l=40, r=40, t=30, b=20), height=350)
-        st.plotly_chart(fig_radar, width='stretch')
+        st.plotly_chart(fig_radar, use_container_width=True)
         
     st.subheader("FFT 频域拆解：基荷与高频扰动分离")
     fft_vals = np.abs(np.fft.rfft(mean_curve)) / 48.0
     fig_fft = px.bar(x=[f"频段 {i}" for i in range(len(fft_vals))], y=fft_vals)
     fig_fft.update_layout(template='plotly_dark', height=250, margin=dict(l=0, r=0, t=10, b=0))
-    st.plotly_chart(fig_fft, width='stretch')
+    st.plotly_chart(fig_fft, use_container_width=True)

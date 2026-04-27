@@ -20,7 +20,7 @@ def render(df_view, df_global, time_cols):
         heatmap_data.index = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][:len(heatmap_data)]
         fig_heat = px.imshow(heatmap_data.values, x=x_axis, y=heatmap_data.index, color_continuous_scale="Viridis", aspect="auto")
         fig_heat.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=10, b=0), height=300)
-        st.plotly_chart(fig_heat, width='stretch')
+        st.plotly_chart(fig_heat, use_container_width=True)
         
     with c2:
         st.subheader("⚙️ 对冲矩阵：互补特征分析")
@@ -29,7 +29,7 @@ def render(df_view, df_global, time_cols):
         fig_corr = px.imshow(corr_matrix, text_auto=".2f", color_continuous_scale="RdBu_r", zmin=-1, zmax=1, aspect="auto")
         fig_corr.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=10, b=0), height=300)
         fig_corr.update_xaxes(showticklabels=False)
-        st.plotly_chart(fig_corr, width='stretch')
+        st.plotly_chart(fig_corr, use_container_width=True)
 
     st.markdown("---")
 
@@ -89,7 +89,7 @@ def render(df_view, df_global, time_cols):
 
         fig_lorenz.update_layout(template='plotly_dark', height=400, margin=dict(l=0, r=0, t=10, b=0),
                                  xaxis_title="用户累计占比", yaxis_title="电量累计占比")
-        st.plotly_chart(fig_lorenz, width='stretch')
+        st.plotly_chart(fig_lorenz, use_container_width=True)
 
     with lc2:
         st.markdown("#### 🏆 头部大户“哨兵”名单")

@@ -66,7 +66,7 @@ if page == "🛰️ 空间一：数据总线 (接入)":
         # 简单预览
         if 'portfolio_data' in st.session_state:
             st.write("数据预览（前5行）：")
-            st.dataframe(st.session_state['portfolio_data'].head(5), width='stretch')
+            st.dataframe(st.session_state['portfolio_data'].head(5), use_container_width=True)
     else:
         st.warning("⚠️ 系统状态：待机中。请上传数据以激活高维空间。")
 

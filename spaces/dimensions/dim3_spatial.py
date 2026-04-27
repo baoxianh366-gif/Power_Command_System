@@ -42,7 +42,7 @@ def render(df_view, total_records, unique_users):
         )
         fig_pca.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=30, b=0), height=450)
         fig_pca.update_xaxes(showticklabels=False); fig_pca.update_yaxes(showticklabels=False)
-        st.plotly_chart(fig_pca, width='stretch')
+        st.plotly_chart(fig_pca, use_container_width=True)
         
     with c2:
         st.subheader("阵营企业数量分布")
@@ -58,7 +58,7 @@ def render(df_view, total_records, unique_users):
         fig_pie = px.pie(cluster_counts, values='户数', names='阵营', hole=0.5)
         fig_pie.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
         fig_pie.update_traces(textposition='inside', textinfo='percent+label+value')
-        st.plotly_chart(fig_pie, width='stretch')
+        st.plotly_chart(fig_pie, use_container_width=True)
         st.caption(f"🛡️ 兵力核对：共计 **{unique_users}** 户独立企业。")
 
     st.markdown("---")
@@ -90,7 +90,7 @@ def render(df_view, total_records, unique_users):
                 ),
                 "负荷率": st.column_config.NumberColumn("负荷率", format="%.1f%%")
             },
-            hide_index=True, width='stretch'
+            hide_index=True, use_container_width=True
         )
         
     with rc2:
@@ -107,5 +107,5 @@ def render(df_view, total_records, unique_users):
                 "偏离度": st.column_config.NumberColumn("中心贴合度 (越低代表越纯正)", format="%.3f"),
                 "负荷率": st.column_config.NumberColumn("负荷率", format="%.1f%%")
             },
-            hide_index=True, width='stretch'
+            hide_index=True, use_container_width=True
         )
