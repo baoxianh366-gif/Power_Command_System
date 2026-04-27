@@ -49,7 +49,13 @@ def render(df_view, df_global, time_cols):
     
     # 计算基尼系数 (简易梯形法)
     cum_energy = np.cumsum(user_energy.values) / total_energy_pool
-    gini = 1 - 2 * np.trapz(cum_energy, dx=1/len(user_energy))
+    # 计算基尼系数 (兼容 NumPy 1.x 和 2.0+ 双版本)
+    try:
+        # 尝试使用 NumPy 2.0+ 的新语法
+        gini = 1 - 2 * np.trapezoid(cum_energy, dx=1/len(user_energy))
+    except AttributeError:
+        # 如果报错，退回使用 NumPy 1.x 的旧语法
+        gini = 1 - 2 * np.trapz(cum_energy, dx=1/len(user_energy))
 
     # 3. 渲染警报雷达看板
     ac1, ac2, ac3 = st.columns([1, 1, 1])
