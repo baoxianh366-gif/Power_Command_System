@@ -44,7 +44,7 @@ def render_intelligence():
             template='plotly_dark', height=400, margin=dict(l=0, r=0, t=10, b=0),
             xaxis_title="时段 (48点)", yaxis_title="电价 (元/MWh)", hovermode="x unified"
         )
-        st.plotly_chart(fig_price, use_container_width=True)
+        st.plotly_chart(fig_price, width='stretch')
         
         st.info("💡 **战术指引**：在沙盘推演中，我们将把资产池的【负荷向量】与此处的【价格向量】进行内积碰撞，计算真实头寸。")
 

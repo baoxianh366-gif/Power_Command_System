@@ -79,7 +79,7 @@ def render(df_view, unique_users):
                 "诊断依据": st.column_config.TextColumn("触发规则", disabled=True),
                 "人工裁定": st.column_config.SelectboxColumn("指挥官终裁", options=["待审核", "✅ 证实", "❌ 驳回"], required=True)
             },
-            use_container_width=True, hide_index=True, height=500
+            width='stretch', hide_index=True, height=500
         )
 
     with col_detail:
@@ -123,4 +123,4 @@ def render(df_view, unique_users):
         fig.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=30, b=0), height=280)
         # 隐藏图例，保持清爽
         fig.update_layout(showlegend=False) 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')

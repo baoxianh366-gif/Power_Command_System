@@ -101,7 +101,7 @@ def render(df_view, time_cols, unique_users):
         )
         fig_carpet.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=10, b=0), height=350)
         fig_carpet.update_yaxes(showticklabels=False)
-        st.plotly_chart(fig_carpet, use_container_width=True)
+        st.plotly_chart(fig_carpet, width='stretch')
 
     with col_right:
         # 💥 智能判定：如果是单日切片，折线图自动变形为“48点日内巡航图”
@@ -124,4 +124,4 @@ def render(df_view, time_cols, unique_users):
             fig_trend.add_scatter(x=[max_day], y=[daily_energy.max()], mode='markers', marker=dict(color='red', size=10), name='局部最高')
             fig_trend.add_scatter(x=[min_day], y=[daily_energy.min()], mode='markers', marker=dict(color='blue', size=10), name='局部最低')
             
-        st.plotly_chart(fig_trend, use_container_width=True)
+        st.plotly_chart(fig_trend, width='stretch')
