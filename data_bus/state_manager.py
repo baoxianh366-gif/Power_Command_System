@@ -59,7 +59,10 @@ def init_system(uploaded_file):
     try:
         with st.spinner("正在读取原始数据文件..."):
             if uploaded_file.name.endswith('.csv'):
-                df = pd.read_csv(uploaded_file)
+                # 💥 升级容错装甲：遇到逗号错乱的脏数据直接跳过，绝不死机！
+                df = pd.read_csv(uploaded_file, on_bad_lines='skip')
+            elif uploaded_file.name.endswith('.parquet'):
+                df = pd.read_parquet(uploaded_file)
             else:
                 df = pd.read_excel(uploaded_file)
         
