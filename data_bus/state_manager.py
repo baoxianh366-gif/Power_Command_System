@@ -33,16 +33,16 @@ def _normalize_resolution(df, time_cols):
     # 3. 升采样：24点 (小时级) -> 96点 (15分钟级，一分四)
     if n_points == 24:
         for i in range(24):
-            standard_matrix[:, i*4] = load_matrix[:, i]
-            standard_matrix[:, i*4 + 1] = load_matrix[:, i]
-            standard_matrix[:, i*4 + 2] = load_matrix[:, i]
-            standard_matrix[:, i*4 + 3] = load_matrix[:, i]
+            standard_matrix[:, i*4] = load_matrix[:, i]/4.0
+            standard_matrix[:, i*4 + 1] = load_matrix[:, i]/4.0
+            standard_matrix[:, i*4 + 2] = load_matrix[:, i]/4.0
+            standard_matrix[:, i*4 + 3] = load_matrix[:, i]/4.0
             
     # 4. 升采样：48点 (半小时级) -> 96点 (15分钟级，一分二)
     elif n_points == 48:
         for i in range(48):
-            standard_matrix[:, i*2] = load_matrix[:, i]
-            standard_matrix[:, i*2 + 1] = load_matrix[:, i]
+            standard_matrix[:, i*2] = load_matrix[:, i]/2.0
+            standard_matrix[:, i*2 + 1] = load_matrix[:, i]/2.0
             
     else:
         raise ValueError(f"🚨 无法识别的数据阵列格式：{n_points} 点。系统当前仅支持 24, 48, 96 点接入。")
@@ -78,13 +78,33 @@ def init_system(uploaded_file):
             df, standard_time_cols = _normalize_resolution(df, time_cols)
             
         with st.spinner("正在执行降维初筛..."):
-            df['日均负荷'] = df[standard_time_cols].mean(axis=1)
-            df['日最大负荷'] = df[standard_time_cols].max(axis=1)
-            df['负荷率'] = df['日均负荷'] / (df['日最大负荷'] + 1e-6)
-            
-            if '阵营标签' not in df.columns:
-                df['阵营标签'] = np.random.choice(['A营-基荷压舱石', 'B营-柔性调节军', 'C营-高频异动团'], len(df))
+                df['日均负荷'] = df[standard_time_cols].mean(axis=1)
+                df['日最大负荷'] = df[standard_time_cols].max(axis=1)
+                df['负荷率'] = df['日均负荷'] / (df['日最大负荷'] + 1e-6)
                 
+                # 💥 战术升级：真实波形 AI 无监督聚类 (五大阵营)
+                if '阵营标签' not in df.columns:
+                    st.toast("🧠 正在启动 AI 聚类引擎：根据 96 点波形特征提取 5 大战术阵营...", icon="🤖")
+                    from sklearn.cluster import MiniBatchKMeans
+                    
+                    # 1. 提取 96 点负荷矩阵，并进行按行归一化 (只看波形走势，剥离绝对功率大小的干扰)
+                    matrix_for_cluster = df[standard_time_cols].fillna(0).values
+                    row_max = matrix_for_cluster.max(axis=1, keepdims=True) + 1e-6
+                    norm_matrix = matrix_for_cluster / row_max
+                    
+                    # 2. 使用极速版 K-Means 算法对 54 万行数据进行瞬间聚类
+                    kmeans = MiniBatchKMeans(n_clusters=5, random_state=42, batch_size=10000, n_init=3)
+                    clusters = kmeans.fit_predict(norm_matrix)
+                    
+                    # 3. 赋予 5 大战术番号
+                    camp_names = {
+                        0: '🛡️ A营-稳定压舱石 (基荷)',
+                        1: '⚔️ B营-日间冲锋军 (早峰)',
+                        2: '🌙 C营-夜峰守夜人 (晚峰)',
+                        3: '☀️ D营-午间塌陷区 (光伏)',
+                        4: '🎛️ E营-高频游骑兵 (柔性)'
+                    }
+                    df['阵营标签'] = [camp_names[lbl] for lbl in clusters]  
         # 锁入系统内存
         st.session_state['portfolio_data'] = df
         st.session_state['time_cols'] = standard_time_cols
