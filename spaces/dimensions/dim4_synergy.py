@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 def render(df_view, df_global, time_cols):
-    x_axis = [f"{str(i//2).zfill(2)}:{'30' if i%2!=0 else '00'}" for i in range(48)]
+    x_axis = [f"{str(i//4).zfill(2)}:{str((i%4)*15).zfill(2)}" for i in range(96)]
     
     # ==========================================
     # 🗺️ 上半部分：规律扫描与对冲

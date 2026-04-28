@@ -1,69 +1,100 @@
+# data_bus/state_manager.py
+import pandas as pd
+import numpy as np
 import streamlit as st
-import time
-from .loaders import parse_and_clean_data
-from math_engine import fft_processor
-from math_engine import clustering 
+
+def _normalize_resolution(df, time_cols):
+    """
+    🎛️ 核心引擎：跨省数据分辨率统一适配器 (96点现货标准版)
+    将 24点/48点 的异构数据，强制升采样为现货标准的 96点 (MW 功率)
+    """
+    n_points = len(time_cols)
+    
+    # 1. 生成标准的 96 点列名 (v0000, v0015, v0030, v0045 ... v2345)
+    std_time_cols = []
+    for h in range(24):
+        for m in ['00', '15', '30', '45']:
+            std_time_cols.append(f"v{h:02d}{m}")
+            
+    # 2. 如果已经是 96 点标准件，直接更换标准列名并放行
+    if n_points == 96:
+        df_meta = df.drop(columns=time_cols)
+        df_load = pd.DataFrame(df[time_cols].values, columns=std_time_cols, index=df.index)
+        return pd.concat([df_meta, df_load], axis=1), std_time_cols
+        
+    st.toast(f"🔄 侦测到 {n_points} 点陈旧格式，正在将其升采样对齐至 96 点现货标准...", icon="⚙️")
+    
+    load_matrix = df[time_cols].values
+    n_samples = load_matrix.shape[0]
+    
+    # 构建 96 点标准容器
+    standard_matrix = np.zeros((n_samples, 96))
+    
+    # 3. 升采样：24点 (小时级) -> 96点 (15分钟级，一分四)
+    if n_points == 24:
+        for i in range(24):
+            standard_matrix[:, i*4] = load_matrix[:, i]
+            standard_matrix[:, i*4 + 1] = load_matrix[:, i]
+            standard_matrix[:, i*4 + 2] = load_matrix[:, i]
+            standard_matrix[:, i*4 + 3] = load_matrix[:, i]
+            
+    # 4. 升采样：48点 (半小时级) -> 96点 (15分钟级，一分二)
+    elif n_points == 48:
+        for i in range(48):
+            standard_matrix[:, i*2] = load_matrix[:, i]
+            standard_matrix[:, i*2 + 1] = load_matrix[:, i]
+            
+    else:
+        raise ValueError(f"🚨 无法识别的数据阵列格式：{n_points} 点。系统当前仅支持 24, 48, 96 点接入。")
+        
+    # 5. 组装新 DataFrame
+    df_meta = df.drop(columns=time_cols)
+    df_load = pd.DataFrame(standard_matrix, columns=std_time_cols, index=df.index)
+    df_final = pd.concat([df_meta, df_load], axis=1)
+    
+    return df_final, std_time_cols
 
 def init_system(uploaded_file):
-    """带实时雷达侦察的数据初始化引擎"""
-    if st.session_state.get('system_status') == 'ready':
-        st.toast("系统已就绪。")
-        return
-
-    with st.spinner("⚙️ 正在执行侦察模式...请同时观察您的终端(黑框框)里的日志输出！"):
-        print("\n" + "="*40)
-        print("🚀 [雷达日志] 1. 开始解析 Excel/CSV 文件...")
+    """系统点火：读取数据并执行高维洗滤"""
+    try:
+        with st.spinner("正在读取原始数据文件..."):
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
         
-        df_clean, time_cols = parse_and_clean_data(uploaded_file)
-        if df_clean is None:
-            print("❌ [雷达日志] 数据加载失败，已终止。")
-            return 
-            
-        print(f"✅ [雷达日志] 2. 文件解析成功，总数据量: {len(df_clean)} 行。")
-        st.write(f"📊 成功读取装载: 总计 {len(df_clean)} 条日运行记录。")
+        # 自动识别时间序列列
+        time_cols = [c for c in df.columns if str(c).startswith('v') or str(c).replace('.','',1).isdigit()]
         
-        # ---------------------------------------------------------
-        # 💥 核心战术：截断防线 💥
-        # 我们强行只派前 1000 个士兵去冲锋，测试引擎是否通畅！
-        # ---------------------------------------------------------
-        #df_test = df_clean.head(1000).copy()
-        #print("⚔️ [雷达日志] 3. 已截取前 1000 条数据作为侦察小队，准备送入数学引擎。")
-        
-        try:
-            print("⚡ [雷达日志] 4. 正在呼叫 FFT 频域扫描引擎...")
-            st.write("⚡ 正在启动 FFT 频域扫描 (侦察小队1000条)...")
-            df_features = fft_processor.extract_features(df_clean, time_cols)
-            print("✅ [雷达日志] 5. FFT 扫描完成！")
-            
-            print("🌌 [雷达日志] 6. 正在呼叫 PCA 与高维聚类引擎...")
-            st.write("🌌 正在进行高维空间聚类与 PCA 降维...")
-            df_portfolio = clustering.run_model(df_features, time_cols)
-            print("✅ [雷达日志] 7. 聚类引擎运行完成！")
-            
-        except Exception as e:
-            print(f"❌ [雷达日志] 引擎遭遇致命错误: {str(e)}")
-            st.error(f"引擎运行报错: {str(e)}")
+        if len(time_cols) not in [24, 48, 96]:
+            st.error(f"🚨 数据格式错误：侦测到 {len(time_cols)} 个时段列。必须为 24, 48 或 96 点！")
             return
-
-        print("💾 [雷达日志] 8. 计算完毕，准备将数据锁入 Streamlit 内存...")
-        # 存入内存
-        st.session_state['raw_data'] = df_clean
-        st.session_state['time_cols'] = time_cols
-        st.session_state['portfolio_data'] = df_portfolio 
+            
+        with st.spinner("正在将全军坐标系强制对齐至 96 点现货标准..."):
+            # 💥 调用适配器统一轨距为 96
+            df, standard_time_cols = _normalize_resolution(df, time_cols)
+            
+        with st.spinner("正在执行降维初筛..."):
+            df['日均负荷'] = df[standard_time_cols].mean(axis=1)
+            df['日最大负荷'] = df[standard_time_cols].max(axis=1)
+            df['负荷率'] = df['日均负荷'] / (df['日最大负荷'] + 1e-6)
+            
+            if '阵营标签' not in df.columns:
+                df['阵营标签'] = np.random.choice(['A营-基荷压舱石', 'B营-柔性调节军', 'C营-高频异动团'], len(df))
+                
+        # 锁入系统内存
+        st.session_state['portfolio_data'] = df
+        st.session_state['time_cols'] = standard_time_cols
         st.session_state['system_status'] = 'ready'
-        print("✅ [雷达日志] 9. 内存锁定成功！系统准备重新加载网页。")
-        print("="*40 + "\n")
         
-    st.rerun() 
+        st.success("✅ 点火成功！数据轨距已全部锁定为 96 点。")
+        
+    except Exception as e:
+        st.error(f"点火失败，请检查弹药库格式: {e}")
 
 def clear_system():
-    """一键清空协议：释放内存，抹除特征"""
-    st.session_state['system_status'] = 'standby'
-    
-    # 清理所有挂载的内存字典
-    keys_to_clear = ['raw_data', 'time_cols', 'portfolio_data', 'global_portfolio_data', 'current_tou_vector']
-    for key in keys_to_clear:
+    for key in ['portfolio_data', 'time_cols', 'system_status']:
         if key in st.session_state:
             del st.session_state[key]
-            
-    st.rerun()
+    st.session_state['system_status'] = 'standby'
+    st.success("🗑️ 系统内存已清空，可挂载其他省份的数据。")

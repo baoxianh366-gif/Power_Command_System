@@ -85,7 +85,7 @@ def render(df_view, time_cols, unique_users):
     # 🗺️ 第二部分：动态视觉图表
     # ==========================================
     col_left, col_right = st.columns([2, 1])
-    y_times = [f"{str(i//2).zfill(2)}:{'30' if i%2!=0 else '00'}" for i in range(48)]
+    y_times = [f"{str(i//4).zfill(2)}:{str((i%4)*15).zfill(2)}" for i in range(96)]
     
     with col_left:
         st.subheader("高维全景地毯图 (Carpet Plot)")

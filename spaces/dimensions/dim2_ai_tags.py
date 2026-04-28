@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 def render(df_view, unique_users):
-    # 动态抓取时间轴列 (48个点)
+    # 动态抓取时间轴列 (支持 96 个点)
     time_cols = [c for c in df_view.columns if str(c).startswith('v') and len(str(c)) == 5]
     
     with st.expander("📖 【战术指南】AI 诊断引擎是如何提取特征证据的？", expanded=False):
@@ -27,23 +27,18 @@ def render(df_view, unique_users):
     # ==========================================
     # 🧬 特征工程：为 UI 展示实时计算“诊断指标”
     # ==========================================
-    # 抽取待审核样本 (真实业务中应根据规则过滤出异常队列)
     review_df = df_view.sample(min(20, len(df_view)), random_state=42).copy()
     
-    # 1. 提取微缩图数据
     review_df['日负荷微缩图'] = review_df[time_cols].values.tolist()
     
-    # 2. 计算【正午塌陷指数】 (11:00-14:00 均值 / 全天均值)
     noon_cols = [c for c in time_cols if '11' <= c[1:3] <= '13']
     review_df['正午塌陷指数'] = review_df[noon_cols].mean(axis=1) / (review_df[time_cols].mean(axis=1) + 1e-6)
     
-    # 3. 计算【高频波动占比】
     if '柔性深度' in review_df.columns:
         review_df['高频波动占比'] = review_df['柔性深度']
     else:
         review_df['高频波动占比'] = np.random.uniform(0.05, 0.35, len(review_df))
 
-    # 4. 根据实时计算的指标，进行 AI 打标
     def assign_ai_tag(row):
         if row['正午塌陷指数'] < 0.65: return '☀️ 疑似光伏'
         elif row['高频波动占比'] > 0.25: return '🎛️ VPP高柔性'
@@ -60,7 +55,6 @@ def render(df_view, unique_users):
     review_df['诊断依据'] = review_df.apply(generate_reason, axis=1)
     review_df['人工裁定'] = '待审核'
     
-    # 创建一个用于下拉框展示的独立字段
     review_df['选择框标签'] = review_df['用户编号'].astype(str) + " (" + review_df['日期'].astype(str) + ")"
 
     # ==========================================
@@ -79,20 +73,18 @@ def render(df_view, unique_users):
                 "诊断依据": st.column_config.TextColumn("触发规则", disabled=True),
                 "人工裁定": st.column_config.SelectboxColumn("指挥官终裁", options=["待审核", "✅ 证实", "❌ 驳回"], required=True)
             },
-            width='stretch', hide_index=True, height=500
+            use_container_width=True, hide_index=True, height=500
         )
 
     with col_detail:
         st.markdown("#### 🔬 单兵深度体检 (Detail)")
         st.caption("👉 选中右侧目标，放大查看作案证据")
         
-        # 联动选择器
         selected_label = st.selectbox("🎯 锁定嫌疑目标", review_df['选择框标签'].tolist())
         target_data = review_df[review_df['选择框标签'] == selected_label].iloc[0]
         
         st.info(f"**判定结论**：{target_data['AI 初筛标签']} | **排查日期**：{target_data['日期']}")
         
-        # 提取用户的 3 个核心指标，并判断是否越界
         uc1, uc2, uc3 = st.columns(3)
         uc1.metric("塌陷指数", f"{target_data['正午塌陷指数']:.2f}", 
                    delta="🚨越界 (<0.65)" if target_data['正午塌陷指数']<0.65 else "✅正常", delta_color="off")
@@ -101,26 +93,26 @@ def render(df_view, unique_users):
         uc3.metric("日负荷率", f"{target_data['负荷率']:.1%}", 
                    delta="🚨越界 (>88%)" if target_data['负荷率']>0.88 else "✅正常", delta_color="off")
 
-        # 绘制该用户的专属放大版曲线
-        x_axis = [f"{str(i//2).zfill(2)}:{'30' if i%2!=0 else '00'}" for i in range(48)]
+        # ==========================================
+        # 💥 96点时间轴与高亮补丁区域 (严格缩进)
+        # ==========================================
+        x_axis = [f"{str(i//4).zfill(2)}:{str((i%4)*15).zfill(2)}" for i in range(96)]
         y_vals = target_data[time_cols].values
         
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=x_axis, y=y_vals, mode='lines+markers', 
                                  line=dict(color='#FF00FF', width=3), marker=dict(size=4), name='负荷实况'))
         
-        # 💥 战术高亮：根据 AI 标签，在图上框出异常区域！
         if '光伏' in target_data['AI 初筛标签']:
-            fig.add_vrect(x0=22, x1=28, fillcolor="rgba(255, 255, 0, 0.2)", layer="below", line_width=0, 
-                          annotation_text="🎯 案发现场: 午间极度塌陷", annotation_position="top left", annotation_font_color="yellow")
+            fig.add_vrect(x0=44, x1=56, fillcolor="rgba(255, 255, 0, 0.2)", layer="below", line_width=0, 
+                          annotation_text="🎯 午间极度塌陷", annotation_position="top left", annotation_font_color="yellow")
         elif '储能' in target_data['AI 初筛标签']:
-            fig.add_vrect(x0=0, x1=16, fillcolor="rgba(0, 255, 255, 0.2)", layer="below", line_width=0, 
-                          annotation_text="🎯 案发现场: 谷段异常平顶", annotation_position="top left", annotation_font_color="cyan")
+            fig.add_vrect(x0=0, x1=32, fillcolor="rgba(0, 255, 255, 0.2)", layer="below", line_width=0, 
+                          annotation_text="🎯 谷段异常平顶", annotation_position="top left", annotation_font_color="cyan")
         elif 'VPP' in target_data['AI 初筛标签']:
-            fig.add_vrect(x0=0, x1=47, fillcolor="rgba(255, 0, 0, 0.1)", layer="below", line_width=0, 
-                          annotation_text="🎯 案发现场: 全天候高频毛刺", annotation_position="top left", annotation_font_color="red")
+            fig.add_vrect(x0=0, x1=95, fillcolor="rgba(255, 0, 0, 0.1)", layer="below", line_width=0, 
+                          annotation_text="🎯 全天候高频毛刺", annotation_position="top left", annotation_font_color="red")
             
         fig.update_layout(template='plotly_dark', margin=dict(l=0, r=0, t=30, b=0), height=280)
-        # 隐藏图例，保持清爽
         fig.update_layout(showlegend=False) 
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)

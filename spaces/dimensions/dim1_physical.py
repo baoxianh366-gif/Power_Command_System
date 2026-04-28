@@ -20,7 +20,7 @@ def render(df_view, time_cols):
         """)
         
     c1, c2 = st.columns([3, 2])
-    x_axis = [f"{str(i//2).zfill(2)}:{'30' if i%2!=0 else '00'}" for i in range(48)]
+    x_axis = [f"{str(i//4).zfill(2)}:{str((i%4)*15).zfill(2)}" for i in range(96)]
     
     with c1:
         st.subheader("时域形态：典型日走势与 TOU 电价映射")
@@ -51,7 +51,7 @@ def render(df_view, time_cols):
         st.plotly_chart(fig_radar, use_container_width=True)
         
     st.subheader("FFT 频域拆解：基荷与高频扰动分离")
-    fft_vals = np.abs(np.fft.rfft(mean_curve)) / 48.0
+    fft_vals = np.abs(np.fft.rfft(mean_curve)) / 96.0
     fig_fft = px.bar(x=[f"频段 {i}" for i in range(len(fft_vals))], y=fft_vals)
     fig_fft.update_layout(template='plotly_dark', height=250, margin=dict(l=0, r=0, t=10, b=0))
     st.plotly_chart(fig_fft, use_container_width=True)
